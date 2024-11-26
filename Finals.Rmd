@@ -1,0 +1,169 @@
+---
+title: "Finals"
+author: "Dhwajesh Bhandari"
+output: html_document
+date: "2024-11-20"
+---
+```{r}
+# Loading necessary libraries
+library(readxl)
+library(fpp2)
+library(ggplot2)
+
+# Load the new data
+file_path <- "Passenger.xlsx"  
+flightVolume <- read_excel(file_path, sheet = "Sheet1")
+
+# Create time series data (Start Date: January 2019)
+ic_ts <- ts(flightVolume$International, start = c(2019, 1), frequency = 12)  
+plot(ic_ts, main = "International Passengers Time Series")
+summary(ic_ts)
+
+# Decompose the time series
+decomposed <- decompose(ic_ts, type = "multiplicative")  
+Trend <- decomposed$trend
+Seasonal <- decomposed$seasonal
+Random <- decomposed$random
+
+# Plot decomposition components
+plot(Trend, main = "Trend Component")
+plot(Seasonal, main = "Seasonal Component")
+plot(Random, main = "Random Component")
+
+# Naïve forecast
+ic_naive <- naive(ic_ts, h = 12)
+plot(ic_naive, main = "Naive Model Forecast")
+residuals_naive <- residuals(ic_naive)
+plot(residuals_naive, main = "Naive Model Residuals")
+
+# Moving average forecast
+maf <- ma(ic_ts, order = 12)
+plot(maf, main = "Moving Average (12-Month)")
+residuals_maf <- ic_ts - maf
+plot(residuals_maf, main = "Moving Average Residuals")
+
+# Multiple moving average windows
+Ma3 <- ma(ic_ts, order = 3)
+Ma6 <- ma(ic_ts, order = 6)
+Ma9 <- ma(ic_ts, order = 9)
+plot(ic_ts, main = "Time Series with Moving Averages", col = "black")
+lines(Ma3, col = "red", lwd = 2)
+lines(Ma6, col = "green", lwd = 2)
+lines(Ma9, col = "yellow", lwd = 2)
+
+# Exponential smoothing
+ic_ses <- ses(ic_ts, h = 12)
+plot(ic_ses, main = "Simple Exponential Smoothing")
+ses_residuals <- residuals(ic_ses)
+plot(ses_residuals, main = "Residuals of Simple Exponential Smoothing")
+
+# Holt-Winters Forecast
+hw_model <- HoltWinters(ic_ts)
+HW_forecast <- forecast(hw_model, h = 12)
+plot(HW_forecast, main = "Holt-Winters Forecast")
+
+# Seasonal and trend decomposition
+stl_decomp <- stl(ic_ts, s.window = "periodic")
+plot(stl_decomp, main = "STL Decomposition")
+stl_forecast <- forecast(stl_decomp, h = 12)
+plot(stl_forecast, main = "STL Forecast")
+trend_forecast <- forecast(decomposed$trend, h = 12)
+plot(trend_forecast, main = "Classical Decomposition Forecast")
+
+# Accuracy measures (MAE and RMSE)
+naive_acc <- accuracy(ic_naive)
+ses_acc <- accuracy(ic_ses)
+hw_acc <- accuracy(HW_forecast)
+decomp_acc <- accuracy(stl_forecast)
+
+# Summary of accuracy measures (MAE and RMSE)
+accuracy_summary <- data.frame(
+  Model = c("Naive", "Exponential Smoothing", "Holt-Winters", "Decomposition"),
+  MAE = c(naive_acc[1, "MAE"], ses_acc[1, "MAE"], hw_acc[1, "MAE"], decomp_acc[1, "MAE"]),
+  RMSE = c(naive_acc[1, "RMSE"], ses_acc[1, "RMSE"], hw_acc[1, "RMSE"], decomp_acc[1, "RMSE"])
+)
+print(accuracy_summary)
+
+# Final forecast for 12 months
+final_forecast <- forecast(hw_model, h = 12)
+plot(final_forecast, main = "12-Month Forecast for International Passengers")
+
+# Adjust regression model for new time series data
+data <- data.frame(
+  Month_Index = seq_along(flightVolume$International), 
+  International = flightVolume$International
+)
+
+# Fit a linear regression model
+regression_model <- lm(International ~ Month_Index, data = data)
+
+# Summary of the regression model
+summary(regression_model)
+
+# Plot the regression line
+ggplot(data, aes(x = Month_Index, y = International)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(
+    title = "Regression of International Passengers on Month Index",
+    x = "Month Index",
+    y = "International Passengers"
+  )
+
+# Residual Analysis
+residuals <- residuals(regression_model)
+ggplot(data, aes(x = Month_Index, y = residuals)) +
+  geom_point(color = "blue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs. Month Index", x = "Month Index", y = "Residuals")
+
+# Create time series for International Passengers (Start: January 2019)
+passenger_ts <- ts(flightVolume$International, start = c(2019, 1), frequency = 12)  
+plot(passenger_ts, main = "International Passengers Time Series", ylab = "Passengers")
+
+# Perform Differencing to Check Stationarity
+ndiffs(passenger_ts)  
+tsdisplay(passenger_ts)  
+
+# First-order differencing
+passenger_ts_diff <- diff(passenger_ts, differences = 1)  
+plot(passenger_ts_diff, main = "Differenced Time Series", ylab = "Differenced Passengers")
+tsdisplay(passenger_ts_diff)
+
+# Fit ARIMA Model
+auto_fit <- auto.arima(passenger_ts, trace = TRUE, stepwise = FALSE)
+print(auto_fit)
+
+# Perform Forecast for the Next Five Periods
+forecast_plot <- forecast(auto_fit, h = 5, level = c(99.5))
+plot(forecast_plot, main = "ARIMA Model Forecast for International Passengers", ylab = "Passengers")
+
+# Residual Analysis
+Acf(auto_fit$residuals, main = "ACF of Residuals")  
+Box.test(residuals(auto_fit), lag = 20, type = "Ljung-Box")  #
+plot.ts(residuals(auto_fit), main = "Residuals of ARIMA Model", ylab = "Residuals")  
+hist(auto_fit$residuals, main = "Histogram of Residuals", xlab = "Residuals", col = "blue")  
+tsdiag(auto_fit) 
+
+# Accuracy of ARIMA Model
+accuracy(auto_fit)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
